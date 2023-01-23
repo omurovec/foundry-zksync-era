@@ -5,3 +5,6 @@
 [submodule "lib/zksolc-bin"]
 	path = lib/zksolc-bin
 	url = https://github.com/matter-labs/zksolc-bin
+[submodule "lib/solidity-stringutils"]
+	path = lib/solidity-stringutils
+	url = https://github.com/Arachnid/solidity-stringutils
