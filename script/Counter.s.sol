@@ -12,8 +12,7 @@ contract CounterScript is Script {
     }
 
     function run() public {
-        vm.broadcast();
-
-        deployer.deployContract("src/Counter.sol");
+        bytes memory params;
+        deployer.deployContract("src/Counter.sol", params, false, address(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319));
     }
 }

@@ -8,6 +8,12 @@
 [submodule "lib/solidity-stringutils"]
 	path = lib/solidity-stringutils
 	url = https://github.com/Arachnid/solidity-stringutils
+[submodule "lib/era-contracts"]
+	path = lib/era-contracts
+	url = https://github.com/matter-labs/era-contracts
+[submodule "lib/era-system-contracts"]
+	path = lib/era-system-contracts
+	url = https://github.com/matter-labs/era-system-contracts
 [submodule "lib/v2-testnet-contracts"]
 	path = lib/v2-testnet-contracts
 	url = https://github.com/matter-labs/v2-testnet-contracts
