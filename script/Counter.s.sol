@@ -13,6 +13,6 @@ contract CounterScript is Script {
 
     function run() public {
         bytes memory params;
-        deployer.deployContract("src/Counter.sol", params, false, address(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319));
+        deployer.deployContract("src/Counter.sol", params, true, address(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319));
     }
 }

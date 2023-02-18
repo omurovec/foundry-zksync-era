@@ -5,8 +5,9 @@ pragma solidity >=0.8.13;
 import "forge-std/StdJson.sol";
 import "forge-std/Test.sol";
 import "solidity-stringutils/strings.sol";
-import "zksync-v2-testnet/l1/contracts/zksync/interfaces/IMailbox.sol";
-import "zksync-v2-testnet/l2/system-contracts/interfaces/IContractDeployer.sol";
+import "era-contracts/ethereum/contracts/zksync/interfaces/IMailbox.sol";
+import "era-contracts/ethereum/contracts/common/L2ContractHelper.sol";
+import "era-contracts/zksync/contracts/vendor/AddressAliasHelper.sol";
 
 ///@notice This cheat codes interface is named _CheatCodes so you can use the CheatCodes interface in other testing files without errors
 interface _CheatCodes {
@@ -20,27 +21,12 @@ interface _CheatCodes {
     function selectFork(uint256 forkId) external;
     function broadcast(uint256 privateKey) external;
     function allowCheatcodes(address) external;
+    function addr(uint256 privateKey) external returns (address);
 }
 
 contract Deployer is Test {
     using stdJson for string;
     using strings for *;
-
-    /* struct EIP712Transaction { */
-    /*     uint256 txType; */
-    /*     uint256 from; */
-    /*     uint256 to; */
-    /*     uint256 ergsLimit; */
-    /*     uint256 ergsPerPubdataByteLimit; */
-    /*     uint256 maxFeePerErg; */
-    /*     uint256 maxPriorityFeePerErg; */
-    /*     uint256 paymaster; */
-    /*     uint256 nonce; */
-    /*     uint256 value; */
-    /*     bytes data; */
-    /*     bytes32[] factoryDeps; */
-    /*     bytes paymasterInput; */
-    /* } */
 
     ///@notice Addresses taken from zksync-v2-testnet/l2/system-contracts/Constants.sol
     ///@notice Cannot import due to conflicts
@@ -59,7 +45,7 @@ contract Deployer is Test {
         l1 = cheatCodes.createFork("layer_1");
     }
 
-    function compileContract(string memory fileName) public returns (bytes memory) {
+    function compileContract(string memory fileName) public returns (bytes memory bytecode) {
         ///@notice Grabs the path of the config file for zksolc from env.
         ///@notice If none is found, default to the one defined in this project
         string memory configFile;
@@ -84,7 +70,16 @@ contract Deployer is Test {
         cmds[0] = "./helper.sh";
         cmds[1] = zksolcPath;
         cmds[2] = fileName;
-        return cheatCodes.ffi(cmds);
+
+        bytecode = cheatCodes.ffi(cmds);
+
+        if(bytecode.length % 64 > 32) {
+            bytes memory padding = new bytes(64 - bytecode.length % 64);
+            bytecode = abi.encodePacked(padding, bytecode);
+        } else if(bytecode.length % 64 < 32) {
+            bytes memory padding = new bytes(32 - bytecode.length % 64);
+            bytecode = abi.encodePacked(padding, bytecode);
+        }
     }
 
     ///@notice taken from zksync-v2-testnet/l1/contracts/common/L2ContractHelper.sol
@@ -106,37 +101,19 @@ contract Deployer is Test {
     function deployContract(string memory fileName, bytes calldata params, bool broadcast, address diamondProxy) public returns (address) {
         bytes memory bytecode = compileContract(fileName);
 
-        if(bytecode.length % 64 > 32) {
-            bytes memory padding = new bytes(64 - bytecode.length % 64);
-            bytecode = abi.encodePacked(padding, bytecode);
-        } else if(bytecode.length % 64 < 32) {
-            bytes memory padding = new bytes(32 - bytecode.length % 64);
-            bytecode = abi.encodePacked(padding, bytecode);
-        }
-
         bytes32 salt = bytes32(0);
         bytes32 bytecodeHash = hashL2Bytecode(bytecode);
-        bytes memory encodedDeployment = abi.encodeCall(IContractDeployer.create, (salt, bytecodeHash, params));
+        bytes memory encodedDeployment = abi.encodeCall(IContractDeployer.create2, (salt, bytecodeHash, params));
 
         ///@notice prep factoryDeps
         bytes[] memory factoryDeps = new bytes[](1);
         factoryDeps[0] = bytecode;
 
-        ///@notice deploy the bytecode with the create instruction
-        /* address deployedAddress; */
-        /* assembly { */
-        /*     deployedAddress := create(0, add(bytecode, 0x20), mload(bytecode)) */
-        /* } */
-
-        /* ///@notice check that the deployment was successful */
-        /* require(deployedAddress != address(0), "Deployer could not deploy contract"); */
-
-        emit log_address(address(DEPLOYER_SYSTEM_CONTRACT));
-
-        // Deploy from Layer 1
+        // Switch to L1
         cheatCodes.allowCheatcodes(address(this));
         cheatCodes.selectFork(l1);
 
+        ///@notice Deploy from Layer 1
         if (broadcast) cheatCodes.broadcast(cheatCodes.envUint("PRIVATE_KEY"));
         bytes32 txHash = IMailbox(diamondProxy).requestL2Transaction(
             address(DEPLOYER_SYSTEM_CONTRACT), // address _contracts
@@ -148,16 +125,17 @@ contract Deployer is Test {
             address(this) // address _refundRecipient
         );
 
-        emit log_bytes(encodedDeployment);
+        ///@notice Log deployment txHash
+        emit log_named_bytes32(string(abi.encodePacked("Deploying ", fileName, " in transaction ")), txHash);
 
-        /* EIP712Transaction memory txRequest = EIP712Transaction({ */
-        /*         txType: 113, */
-        /*         from: uint256(uint160(address(this))), // NOTE: Maybe swap to msg.sender? */
-        /*         to: uint256(uint160(address(DEPLOYER_SYSTEM_CONTRACT))), */
-        /*         ergsLimit: uint256(0), */
-        /*         ergsPerPubdataByteLimit: uint256(0), */
-        /*         maxFeePerErg: uint256(0), */
-        /*         paymaster: uint256(0) */
-        /* }); */
+        ///@notice Compute deployment address
+        address deployer = cheatCodes.addr(cheatCodes.envUint("PRIVATE_KEY"));
+        address deployerAlias = AddressAliasHelper.applyL1ToL2Alias(deployer);
+        bytes32 paramsHash = keccak256(params);
+        address contractAddress = L2ContractHelper.computeCreate2Address(deployerAlias, salt, bytecodeHash, paramsHash);
+
+        ///@notice Log deployment address
+        emit log_named_address(string(abi.encodePacked(fileName, " to be deployed to")), contractAddress);
     }
+
 }

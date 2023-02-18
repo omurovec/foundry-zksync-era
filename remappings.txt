@@ -1,5 +1,4 @@
 forge-std/=lib/forge-std/src/
 solidity-stringutils/=lib/solidity-stringutils/src/
-zksync-v2-testnet/=lib/v2-testnet-contracts/
-era-contracts/=lib/era-contracts/
-era-system-contracts/=lib/era-system-contracts/
+era-contracts/=lib/era-contracts
+era-system-contracts/=lib/era-system-contracts

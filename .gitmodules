@@ -14,6 +14,3 @@
 [submodule "lib/era-system-contracts"]
 	path = lib/era-system-contracts
 	url = https://github.com/matter-labs/era-system-contracts
-[submodule "lib/v2-testnet-contracts"]
-	path = lib/v2-testnet-contracts
-	url = https://github.com/matter-labs/v2-testnet-contracts
