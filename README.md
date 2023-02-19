@@ -1,5 +1,7 @@
 # Foundry Plugin for zkSync Era
 
+![Preview](preview.png)
+
 ## Overview
 
 This plugin allows for the compilation & deployment of contracts to the zkSync Era network within a foundry project. zkSync Era uses a custom compiler and deployment process different from other EVM networks, this plugin simplifies this process.
@@ -43,7 +45,13 @@ OS="" # macosx | windows | linux
 ARCH="" # arm64 | amd64
 ```
 
-Deploy your contracts using the script you created
+Enable read/write permissions in your `foundry.toml`:
+
+```toml
+fs_permissions = [{ access = "read-write", path = "./"}]
+```
+
+Deploy your contracts using the script you created:
 
 ```sh
 forge script scripts/Script.s.sol --ffi --broadcast --rpc-url L1_RPC_URL
