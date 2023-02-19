@@ -29,7 +29,6 @@ contract Deployer {
     /* address constant HEVM_ADDRESS = address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))); */
     _CheatCodes cheatCodes = _CheatCodes(address(uint160(uint256(keccak256("hevm cheat code")))));
 
-
     ///@notice Compiler & deployment config
     string constant zksolcRepo = "https://github.com/matter-labs/zksolc-bin";
     string public projectRoot;
@@ -63,7 +62,10 @@ contract Deployer {
         bytecode = cheatCodes.ffi(echoCmds);
     }
 
-    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public returns (address) {
+    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast)
+        public
+        returns (address)
+    {
         bytes memory bytecode = compileContract(fileName);
 
         bytes32 bytecodeHash = L2ContractHelper.hashL2Bytecode(bytecode);
@@ -92,26 +94,23 @@ contract Deployer {
     }
 
     function _installCompiler(string memory version) internal returns (string memory path) {
-
         ///@notice Ensure correct compiler bin is installed
         string memory os = cheatCodes.envString("OS");
         string memory arch = cheatCodes.envString("ARCH");
-        string memory extension = keccak256(bytes(os)) == keccak256(bytes("win32")) ? "exe" : "";
+        string memory extension = keccak256(bytes(os)) == keccak256(bytes("windows")) ? "exe" : "";
 
         ///@notice Get toolchain
         string memory toolchain = "";
-        if (keccak256(bytes(os)) == keccak256(bytes("win32"))) {
+        if (keccak256(bytes(os)) == keccak256(bytes("windows"))) {
             toolchain = "-gnu";
-        }else if (keccak256(bytes(os)) ==keccak256(bytes( "linux"))) {
+        } else if (keccak256(bytes(os)) == keccak256(bytes("linux"))) {
             toolchain = "-musl";
         }
 
         ///@notice Construct urls/paths
         string memory fileName = string(abi.encodePacked("zksolc-", os, "-", arch, toolchain, "-v", version, extension));
-        string memory zksolcUrl =
-            string(abi.encodePacked(zksolcRepo, "/raw/main/", os, "-", arch, "/", fileName));
+        string memory zksolcUrl = string(abi.encodePacked(zksolcRepo, "/raw/main/", os, "-", arch, "/", fileName));
         path = string(abi.encodePacked(projectRoot, "/lib/", fileName));
-
 
         ///@notice Download zksolc compiler bin
         string[] memory curl_cmds = new string[](6);
