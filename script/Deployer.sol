@@ -56,12 +56,23 @@ contract Deployer is Test {
     function compileContract(string memory fileName) public returns (bytes memory bytecode) {
         ///@notice Compiles the contract using zksolc
         string[] memory cmds = new string[](3);
-        cmds[0] = string(abi.encodePacked(projectRoot, "/helper.sh"));
-        cmds[1] = zksolcPath;
+        cmds[0] = zksolcPath;
+        cmds[1] = "--bin";
         cmds[2] = fileName;
+        string memory compilerOutput = string(cheatCodes.ffi(cmds));
 
-        bytecode = cheatCodes.ffi(cmds);
+        ///@notice Raw compiler output includes some text as prefix which causes ffi
+        ///        to default to reading as utf8 instead of bytes
+        string memory utf8Bytecode = compilerOutput.toSlice().rsplit(" ".toSlice()).toString();
 
+        ///@notice Pass stripped bytes back into ffi to parse correctly as bytes
+        string[] memory echoCmds = new string[](2);
+        echoCmds[0] = "echo";
+        echoCmds[1] = utf8Bytecode;
+
+        bytecode = cheatCodes.ffi(echoCmds);
+
+        ///@notice Padd to proper length
         if (bytecode.length % 64 > 32) {
             bytes memory padding = new bytes(64 - bytecode.length % 64);
             bytecode = abi.encodePacked(padding, bytecode);
