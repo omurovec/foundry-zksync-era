@@ -12,8 +12,6 @@ interface _CheatCodes {
     function ffi(string[] calldata) external returns (bytes memory);
     function envString(string calldata key) external returns (string memory value);
     function envUint(string calldata key) external returns (uint256 value);
-    function createFork(string calldata) external returns (uint256);
-    function selectFork(uint256 forkId) external;
     function broadcast(uint256 privateKey) external;
     function allowCheatcodes(address) external;
     function addr(uint256 privateKey) external returns (address);
@@ -31,20 +29,19 @@ contract Deployer {
     /* address constant HEVM_ADDRESS = address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))); */
     _CheatCodes cheatCodes = _CheatCodes(address(uint160(uint256(keccak256("hevm cheat code")))));
 
-    ///@notice Fork IDs
-    uint256 public l1;
-    uint256 public l2;
 
     ///@notice Compiler & deployment config
     string constant zksolcRepo = "https://github.com/matter-labs/zksolc-bin";
     string public projectRoot;
     string public zksolcPath;
+    address public diamondProxy;
 
-    constructor(string memory _zksolcVersion) {
-        l1 = cheatCodes.createFork("layer_1");
+    constructor(string memory _zksolcVersion, address _diamondProxy) {
         ///@notice install bin compiler
         projectRoot = cheatCodes.projectRoot();
         zksolcPath = _installCompiler(_zksolcVersion);
+
+        diamondProxy = _diamondProxy;
     }
 
     function compileContract(string memory fileName) public returns (bytes memory bytecode) {
@@ -66,7 +63,7 @@ contract Deployer {
         bytecode = cheatCodes.ffi(echoCmds);
     }
 
-    function deployContract(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast, address diamondProxy) public returns (address) {
+    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public returns (address) {
         bytes memory bytecode = compileContract(fileName);
 
         bytes32 bytecodeHash = L2ContractHelper.hashL2Bytecode(bytecode);
@@ -75,10 +72,6 @@ contract Deployer {
         ///@notice prep factoryDeps
         bytes[] memory factoryDeps = new bytes[](1);
         factoryDeps[0] = bytecode;
-
-        // Switch to L1
-        cheatCodes.allowCheatcodes(address(this));
-        cheatCodes.selectFork(l1);
 
         ///@notice Deploy from Layer 1
         if (broadcast) cheatCodes.broadcast(cheatCodes.envUint("PRIVATE_KEY"));
