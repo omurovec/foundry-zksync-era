@@ -2,8 +2,6 @@
 
 pragma solidity >=0.8.13;
 
-import "forge-std/StdJson.sol";
-import "forge-std/Test.sol";
 import "solidity-stringutils/strings.sol";
 import "era-contracts/ethereum/contracts/zksync/interfaces/IMailbox.sol";
 import "era-contracts/ethereum/contracts/common/L2ContractHelper.sol";
@@ -14,9 +12,6 @@ interface _CheatCodes {
     function ffi(string[] calldata) external returns (bytes memory);
     function envString(string calldata key) external returns (string memory value);
     function envUint(string calldata key) external returns (uint256 value);
-    function parseJson(string memory json, string memory key) external returns (string memory value);
-    function writeFile(string calldata, string calldata) external;
-    function readFile(string calldata) external returns (string memory);
     function createFork(string calldata) external returns (uint256);
     function selectFork(uint256 forkId) external;
     function broadcast(uint256 privateKey) external;
@@ -25,8 +20,7 @@ interface _CheatCodes {
     function projectRoot() external view returns (string memory path);
 }
 
-contract Deployer is Test {
-    using stdJson for string;
+contract Deployer {
     using strings for *;
 
     ///@notice Addresses taken from zksync-v2-testnet/l2/system-contracts/Constants.sol
@@ -35,7 +29,7 @@ contract Deployer is Test {
 
     ///@notice Custom override for cheatCodes
     /* address constant HEVM_ADDRESS = address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))); */
-    _CheatCodes cheatCodes = _CheatCodes(HEVM_ADDRESS);
+    _CheatCodes cheatCodes = _CheatCodes(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     ///@notice Fork IDs
     uint256 public l1;
@@ -69,40 +63,13 @@ contract Deployer is Test {
         string[] memory echoCmds = new string[](2);
         echoCmds[0] = "echo";
         echoCmds[1] = utf8Bytecode;
-
         bytecode = cheatCodes.ffi(echoCmds);
-
-        ///@notice Padd to proper length
-        if (bytecode.length % 64 > 32) {
-            bytes memory padding = new bytes(64 - bytecode.length % 64);
-            bytecode = abi.encodePacked(padding, bytecode);
-        } else if (bytecode.length % 64 < 32) {
-            bytes memory padding = new bytes(32 - bytecode.length % 64);
-            bytecode = abi.encodePacked(padding, bytecode);
-        }
     }
 
-    ///@notice taken from zksync-v2-testnet/l1/contracts/common/L2ContractHelper.sol
-    function hashL2Bytecode(bytes memory _bytecode) internal pure returns (bytes32 hashedBytecode) {
-        // Note that the length of the bytecode
-        // must be provided in 32-byte words.
-        require(_bytecode.length % 32 == 0, "po");
-
-        uint256 bytecodeLenInWords = _bytecode.length / 32;
-        require(bytecodeLenInWords < 2 ** 16, "pp"); // bytecode length must be less than 2^16 words
-        require(bytecodeLenInWords % 2 == 1, "pr"); // bytecode length in words must be odd
-        hashedBytecode = sha256(_bytecode) & 0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-        // Setting the version of the hash
-        hashedBytecode = (hashedBytecode | bytes32(uint256(1 << 248)));
-        // Setting the length
-        hashedBytecode = hashedBytecode | bytes32(bytecodeLenInWords << 224);
-    }
-
-    function deployContract(string memory fileName, bytes calldata params, bool broadcast, address diamondProxy) public returns (address) {
+    function deployContract(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast, address diamondProxy) public returns (address) {
         bytes memory bytecode = compileContract(fileName);
 
-        bytes32 salt = bytes32(0);
-        bytes32 bytecodeHash = hashL2Bytecode(bytecode);
+        bytes32 bytecodeHash = L2ContractHelper.hashL2Bytecode(bytecode);
         bytes memory encodedDeployment = abi.encodeCall(IContractDeployer.create2, (salt, bytecodeHash, params));
 
         ///@notice prep factoryDeps
@@ -115,7 +82,7 @@ contract Deployer is Test {
 
         ///@notice Deploy from Layer 1
         if (broadcast) cheatCodes.broadcast(cheatCodes.envUint("PRIVATE_KEY"));
-        bytes32 txHash = IMailbox(diamondProxy).requestL2Transaction(
+        IMailbox(diamondProxy).requestL2Transaction(
             address(DEPLOYER_SYSTEM_CONTRACT), // address _contracts
             0, // uint256 _l2Value
             encodedDeployment, // bytes calldata _calldata
@@ -125,17 +92,11 @@ contract Deployer is Test {
             address(this) // address _refundRecipient
         );
 
-        ///@notice Log deployment txHash
-        emit log_named_bytes32(string(abi.encodePacked("Deploying ", fileName, " in transaction ")), txHash);
-
         ///@notice Compute deployment address
         address deployer = cheatCodes.addr(cheatCodes.envUint("PRIVATE_KEY"));
         address deployerAlias = AddressAliasHelper.applyL1ToL2Alias(deployer);
         bytes32 paramsHash = keccak256(params);
-        address contractAddress = L2ContractHelper.computeCreate2Address(deployerAlias, salt, bytecodeHash, paramsHash);
-
-        ///@notice Log deployment address
-        emit log_named_address(string(abi.encodePacked(fileName, " to be deployed to")), contractAddress);
+        return L2ContractHelper.computeCreate2Address(deployerAlias, salt, bytecodeHash, paramsHash);
     }
 
     function _installCompiler(string memory version) internal returns (string memory path) {
