@@ -8,7 +8,7 @@ contract CounterScript is Script {
     Deployer public deployer;
 
     function setUp() public {
-        deployer = new Deployer();
+        deployer = new Deployer("1.3.1");
     }
 
     function run() public {

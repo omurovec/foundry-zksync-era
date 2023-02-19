@@ -22,6 +22,7 @@ interface _CheatCodes {
     function broadcast(uint256 privateKey) external;
     function allowCheatcodes(address) external;
     function addr(uint256 privateKey) external returns (address);
+    function projectRoot() external view returns (string memory path);
 }
 
 contract Deployer is Test {
@@ -30,7 +31,6 @@ contract Deployer is Test {
 
     ///@notice Addresses taken from zksync-v2-testnet/l2/system-contracts/Constants.sol
     ///@notice Cannot import due to conflicts
-    uint160 constant SYSTEM_CONTRACTS_OFFSET = 0x8000; // 2^15
     IContractDeployer constant DEPLOYER_SYSTEM_CONTRACT = IContractDeployer(address(SYSTEM_CONTRACTS_OFFSET + 0x06));
 
     ///@notice Custom override for cheatCodes
@@ -41,42 +41,31 @@ contract Deployer is Test {
     uint256 public l1;
     uint256 public l2;
 
-    constructor() {
+    ///@notice Compiler & deployment config
+    string constant zksolcRepo = "https://github.com/matter-labs/zksolc-bin";
+    string public projectRoot;
+    string public zksolcPath;
+
+    constructor(string memory _zksolcVersion) {
         l1 = cheatCodes.createFork("layer_1");
+        ///@notice install bin compiler
+        projectRoot = cheatCodes.projectRoot();
+        zksolcPath = _installCompiler(_zksolcVersion);
     }
 
     function compileContract(string memory fileName) public returns (bytes memory bytecode) {
-        ///@notice Grabs the path of the config file for zksolc from env.
-        ///@notice If none is found, default to the one defined in this project
-        string memory configFile;
-        try cheatCodes.envString("CONFIG_FILE") returns (string memory value) {
-            configFile = value;
-        } catch {
-            configFile = "zksolc.json";
-        }
-
-        ///@notice Parses config values from file
-        string memory config = cheatCodes.readFile(configFile);
-        string memory os = config.readString("os");
-        string memory arch = config.readString("arch");
-        string memory version = config.readString("version");
-
-        ///@notice Constructs zksolc path from config
-        string memory zksolcPath =
-            string(abi.encodePacked("lib/zksolc-bin/", os, "-", arch, "/zksolc-", os, "-", arch, "-v", version));
-
         ///@notice Compiles the contract using zksolc
         string[] memory cmds = new string[](3);
-        cmds[0] = "./helper.sh";
+        cmds[0] = string(abi.encodePacked(projectRoot, "/helper.sh"));
         cmds[1] = zksolcPath;
         cmds[2] = fileName;
 
         bytecode = cheatCodes.ffi(cmds);
 
-        if(bytecode.length % 64 > 32) {
+        if (bytecode.length % 64 > 32) {
             bytes memory padding = new bytes(64 - bytecode.length % 64);
             bytecode = abi.encodePacked(padding, bytecode);
-        } else if(bytecode.length % 64 < 32) {
+        } else if (bytecode.length % 64 < 32) {
             bytes memory padding = new bytes(32 - bytecode.length % 64);
             bytecode = abi.encodePacked(padding, bytecode);
         }
@@ -89,7 +78,7 @@ contract Deployer is Test {
         require(_bytecode.length % 32 == 0, "po");
 
         uint256 bytecodeLenInWords = _bytecode.length / 32;
-        require(bytecodeLenInWords < 2**16, "pp"); // bytecode length must be less than 2^16 words
+        require(bytecodeLenInWords < 2 ** 16, "pp"); // bytecode length must be less than 2^16 words
         require(bytecodeLenInWords % 2 == 1, "pr"); // bytecode length in words must be odd
         hashedBytecode = sha256(_bytecode) & 0x00000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
         // Setting the version of the hash
@@ -138,4 +127,43 @@ contract Deployer is Test {
         emit log_named_address(string(abi.encodePacked(fileName, " to be deployed to")), contractAddress);
     }
 
+    function _installCompiler(string memory version) internal returns (string memory path) {
+
+        ///@notice Ensure correct compiler bin is installed
+        string memory os = cheatCodes.envString("OS");
+        string memory arch = cheatCodes.envString("ARCH");
+        string memory extension = keccak256(bytes(os)) == keccak256(bytes("win32")) ? "exe" : "";
+
+        ///@notice Get toolchain
+        string memory toolchain = "";
+        if (keccak256(bytes(os)) == keccak256(bytes("win32"))) {
+            toolchain = "-gnu";
+        }else if (keccak256(bytes(os)) ==keccak256(bytes( "linux"))) {
+            toolchain = "-musl";
+        }
+
+        ///@notice Construct urls/paths
+        string memory fileName = string(abi.encodePacked("zksolc-", os, "-", arch, toolchain, "-v", version, extension));
+        string memory zksolcUrl =
+            string(abi.encodePacked(zksolcRepo, "/raw/main/", os, "-", arch, "/", fileName));
+        path = string(abi.encodePacked(projectRoot, "/lib/", fileName));
+
+
+        ///@notice Download zksolc compiler bin
+        string[] memory curl_cmds = new string[](6);
+        curl_cmds[0] = "curl";
+        curl_cmds[1] = "-L";
+        curl_cmds[2] = zksolcUrl;
+        curl_cmds[3] = "--output";
+        curl_cmds[4] = path;
+        curl_cmds[5] = "--silent";
+        cheatCodes.ffi(curl_cmds);
+
+        ///@notice set correct file permissions
+        string[] memory chmod_cmds = new string[](3);
+        chmod_cmds[0] = "chmod";
+        chmod_cmds[1] = "+x";
+        chmod_cmds[2] = path;
+        cheatCodes.ffi(chmod_cmds);
+    }
 }

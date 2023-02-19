@@ -2,9 +2,6 @@
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 	branch = v1.3.0
-[submodule "lib/zksolc-bin"]
-	path = lib/zksolc-bin
-	url = https://github.com/matter-labs/zksolc-bin
 [submodule "lib/solidity-stringutils"]
 	path = lib/solidity-stringutils
 	url = https://github.com/Arachnid/solidity-stringutils
