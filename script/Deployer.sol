@@ -94,9 +94,8 @@ contract Deployer {
 
         ///@notice Compute deployment address
         address deployer = cheatCodes.addr(cheatCodes.envUint("PRIVATE_KEY"));
-        address deployerAlias = AddressAliasHelper.applyL1ToL2Alias(deployer);
         bytes32 paramsHash = keccak256(params);
-        return L2ContractHelper.computeCreate2Address(deployerAlias, salt, bytecodeHash, paramsHash);
+        return L2ContractHelper.computeCreate2Address(deployer, salt, bytecodeHash, paramsHash);
     }
 
     function _installCompiler(string memory version) internal returns (string memory path) {
