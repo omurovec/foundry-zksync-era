@@ -8,6 +8,3 @@
 [submodule "lib/era-contracts"]
 	path = lib/era-contracts
 	url = https://github.com/matter-labs/era-contracts
-[submodule "lib/era-system-contracts"]
-	path = lib/era-system-contracts
-	url = https://github.com/matter-labs/era-system-contracts
