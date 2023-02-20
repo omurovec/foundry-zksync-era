@@ -23,7 +23,7 @@ Import `Deployer.sol` into your deployment script and use as follows:
 ```solidity
 // Script.s.sol
 
-import "lib/foundry-zksync-era/Deployer.sol";
+import "lib/foundry-zksync-era/script/Deployer.sol";
 
 ...
 
