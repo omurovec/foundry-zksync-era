@@ -37,12 +37,10 @@ deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1337)), t
 
 > Note: The Diamond Proxy address is the address of the L1 contract that handles all interactions with the zkSync network. At the time of writing, the diamond proxy for goerli was used in the example however this can change after regenesis & other network upgrades. This address will always be the same as the bridge and can be found by attempting to bridge assets at https://portal.zksync.io/bridge
 
-Ensure the following values are in your env:
+Ensure your private key is in your env:
 
 ```sh
 PRIVATE_KEY=""
-OS="" # macosx | windows | linux
-ARCH="" # arm64 | amd64
 ```
 
 Enable read/write permissions in your `foundry.toml`:
@@ -67,7 +65,7 @@ This is a work in progress so it does not have all the features of it's counterp
 
 - This project currently **only supports deployment from L1**. Direct deployment from L2 requires custom data to be passed in to the EIP-712 transaction (see [zkSync docs](https://era.zksync.io/docs/api/api.html#eip712)).
 
-- The `_l2GasLimit` & `_l2GasPerPubdataByteLimit` params for `requestL2Transaction()` are currently hardcoded to their max values for convenience.
+- ~~The `_l2GasLimit` & `_l2GasPerPubdataByteLimit` params for `requestL2Transaction()` are currently hardcoded to their max values for convenience.~~
 
 ## Contribution
 

@@ -8,11 +8,7 @@ import "era-contracts/ethereum/contracts/zksync/interfaces/IMailbox.sol";
 import "era-contracts/ethereum/contracts/common/L2ContractHelper.sol";
 import "era-contracts/zksync/contracts/vendor/AddressAliasHelper.sol";
 
-import {
-    L2_TX_MAX_GAS_LIMIT,
-    DEFAULT_L2_GAS_PRICE_PER_PUBDATA,
-    ZKSOLC_BIN_REPO
-} from "./Constants.sol";
+import {L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA, ZKSOLC_BIN_REPO} from "./Constants.sol";
 
 contract Deployer {
     using strings for *;
@@ -24,6 +20,13 @@ contract Deployer {
     string private zksolcPath;
     address private diamondProxy;
 
+    struct SystemInfo {
+        string os;
+        string arch;
+        string extension;
+        string toolchain;
+    }
+
     constructor(string memory _zksolcVersion, address _diamondProxy) {
         ///@notice install bin compiler
         projectRoot = _vm.projectRoot();
@@ -32,15 +35,18 @@ contract Deployer {
         diamondProxy = _diamondProxy;
     }
 
-
     function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public {
         deployFromL1(fileName, params, salt, broadcast, L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
     }
 
-    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast, uint256 gasLimit, uint256 l2GasPerPubdataByteLimit)
-        public
-        returns (address)
-    {
+    function deployFromL1(
+        string memory fileName,
+        bytes calldata params,
+        bytes32 salt,
+        bool broadcast,
+        uint256 gasLimit,
+        uint256 l2GasPerPubdataByteLimit
+    ) public returns (address) {
         bytes memory bytecode = _compileContract(fileName);
 
         bytes32 bytecodeHash = L2ContractHelper.hashL2Bytecode(bytecode);
@@ -87,23 +93,50 @@ contract Deployer {
         bytecode = _vm.ffi(echoCmds);
     }
 
-    function _installCompiler(string memory version) internal returns (string memory path) {
-        ///@notice Ensure correct compiler bin is installed
-        string memory os = _vm.envString("OS");
-        string memory arch = _vm.envString("ARCH");
-        string memory extension = keccak256(bytes(os)) == keccak256(bytes("windows")) ? "exe" : "";
+    function _detectSystemInfo() private returns (SystemInfo memory systemInfo) {
+        string[] memory cmds = new string[](2);
 
-        ///@notice Get toolchain
-        string memory toolchain = "";
-        if (keccak256(bytes(os)) == keccak256(bytes("windows"))) {
-            toolchain = "-gnu";
-        } else if (keccak256(bytes(os)) == keccak256(bytes("linux"))) {
-            toolchain = "-musl";
+        ///@notice Try to check arch on windows
+        cmds[0] = "echo";
+        cmds[1] = "%PROCESSOR_ARCHITECTURE%";
+
+        ///@notice %PROCESS_ARCHITECTURE% evaluated to something
+        if (keccak256(bytes(_vm.ffi(cmds))) != keccak256(bytes(cmds[1]))) {
+            systemInfo.os = "windows";
+            systemInfo.arch = "amd64";
+            systemInfo.extension = "exe";
+            systemInfo.toolchain = "-gnu";
+        } else {
+            ///@notice Check os
+            cmds[1] = "$(uname -s)";
+            systemInfo.os = keccak256(bytes(_vm.ffi(cmds))) != keccak256(bytes("Darwin")) ? "macosx" : "linux";
+            systemInfo.toolchain = keccak256(bytes(systemInfo.os)) == keccak256(bytes("linux")) ? "-musl" : "";
+
+            ///@notice Check arch
+            cmds[1] = "$(uname -m)";
+            systemInfo.arch = keccak256(bytes(_vm.ffi(cmds))) != keccak256(bytes("arm64")) ? "arm64" : "amd64";
         }
+    }
+
+    ///@notice Ensure correct compiler bin is installed
+    function _installCompiler(string memory version) internal returns (string memory path) {
+        SystemInfo memory systemInfo = _detectSystemInfo();
 
         ///@notice Construct urls/paths
-        string memory fileName = string(abi.encodePacked("zksolc-", os, "-", arch, toolchain, "-v", version, extension));
-        string memory zksolcUrl = string(abi.encodePacked(ZKSOLC_BIN_REPO, "/raw/main/", os, "-", arch, "/", fileName));
+        string memory fileName = string(
+            abi.encodePacked(
+                "zksolc-",
+                systemInfo.os,
+                "-",
+                systemInfo.arch,
+                systemInfo.toolchain,
+                "-v",
+                version,
+                systemInfo.extension
+            )
+        );
+        string memory zksolcUrl =
+            string(abi.encodePacked(ZKSOLC_BIN_REPO, "/raw/main/", systemInfo.os, "-", systemInfo.arch, "/", fileName));
         path = string(abi.encodePacked(projectRoot, "/lib/", fileName));
 
         ///@notice Download zksolc compiler bin
