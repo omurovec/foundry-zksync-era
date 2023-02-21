@@ -22,9 +22,9 @@ contract Deployer {
     VmSafe _vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     ///@notice Compiler & deployment config
-    string public projectRoot;
-    string public zksolcPath;
-    address public diamondProxy;
+    string private projectRoot;
+    string private zksolcPath;
+    address private diamondProxy;
 
     constructor(string memory _zksolcVersion, address _diamondProxy) {
         ///@notice install bin compiler
