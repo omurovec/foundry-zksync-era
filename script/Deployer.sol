@@ -45,15 +45,14 @@ contract Deployer {
         diamondProxy = _diamondProxy;
     }
 
-    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public returns (address) {
-        return deployFromL1(fileName, params, salt, broadcast, L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
+    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt) public returns (address) {
+        return deployFromL1(fileName, params, salt,  L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
     }
 
     function deployFromL1(
         string memory fileName,
         bytes calldata params,
         bytes32 salt,
-        bool broadcast,
         uint256 gasLimit,
         uint256 l2GasPerPubdataByteLimit
     ) public returns (address) {
@@ -71,7 +70,7 @@ contract Deployer {
         uint256 baseFee = mailbox.l2TransactionBaseCost(tx.gasprice, gasLimit, l2GasPerPubdataByteLimit);
 
         ///@notice Deploy from Layer 1
-        if (broadcast) _vm.broadcast(_vm.envUint("PRIVATE_KEY"));
+        _vm.broadcast(_vm.envUint("PRIVATE_KEY"));
         mailbox.requestL2Transaction{
             value: baseFee * (100 + L2_BASE_FEE_BUFFER) / 100
         }(

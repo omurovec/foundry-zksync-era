@@ -33,9 +33,9 @@ address DIAMOND_PROXY_GOERLI = 0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319;
 // Provide zkSync compiler version and address of the diamond proxy on L1
 Deployer deployer = new Deployer("1.3.7", DIAMOND_PROXY_MAINNET);
 
-// Provide path to contract, input params, salt & whether it should broadcast
+// Provide path to contract, input params & salt
 // Returns deployment address on L2
-deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1337)), true);
+deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1337)));
 ```
 
 > Note: The Diamond Proxy address is the address of the L1 contract that handles all interactions with the zkSync network. This address will always be the same as the bridge and can be found by attempting to bridge assets at https://portal.zksync.io/bridge
