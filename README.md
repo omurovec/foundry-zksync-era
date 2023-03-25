@@ -27,8 +27,8 @@ import "lib/foundry-zksync-era/script/Deployer.sol";
 
 ...
 // Diamond proxy addresses, last updated 24.03.2023
-address DIAMOND_PROXY_MAINNET = 0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319;
-address DIAMOND_PROXY_GOERLI = 0x32400084C286CF3E17e7B677ea9583e60a000324;
+address DIAMOND_PROXY_MAINNET = 0x32400084C286CF3E17e7B677ea9583e60a000324;
+address DIAMOND_PROXY_GOERLI = 0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319;
 
 // Provide zkSync compiler version and address of the diamond proxy on L1
 Deployer deployer = new Deployer("1.3.7", DIAMOND_PROXY_MAINNET);
