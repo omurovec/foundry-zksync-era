@@ -5,10 +5,20 @@ pragma solidity >=0.8.13;
 import "forge-std/Vm.sol";
 import "solidity-stringutils/strings.sol";
 import "era-contracts/ethereum/contracts/zksync/interfaces/IMailbox.sol";
-import "era-contracts/ethereum/contracts/common/L2ContractHelper.sol";
+import "era-contracts/ethereum/contracts/common/L2ContractAddresses.sol";
+import "era-contracts/ethereum/contracts/common/libraries/L2ContractHelper.sol";
 import "era-contracts/zksync/contracts/vendor/AddressAliasHelper.sol";
 
-import {L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA, ZKSOLC_BIN_REPO} from "./Constants.sol";
+import {
+    L2_TX_MAX_GAS_LIMIT,
+    DEFAULT_L2_GAS_PRICE_PER_PUBDATA,
+    L2_BASE_FEE_BUFFER,
+    ZKSOLC_BIN_REPO
+} from "./Constants.sol";
+
+interface IContractDeployer {
+    function create2(bytes32 _salt, bytes32 _bytecodeHash, bytes calldata _input) external;
+}
 
 contract Deployer {
     using strings for *;
@@ -35,8 +45,8 @@ contract Deployer {
         diamondProxy = _diamondProxy;
     }
 
-    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public {
-        deployFromL1(fileName, params, salt, broadcast, L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
+    function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt, bool broadcast) public returns (address) {
+        return deployFromL1(fileName, params, salt, broadcast, L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
     }
 
     function deployFromL1(
@@ -51,15 +61,21 @@ contract Deployer {
 
         bytes32 bytecodeHash = L2ContractHelper.hashL2Bytecode(bytecode);
         bytes memory encodedDeployment = abi.encodeCall(IContractDeployer.create2, (salt, bytecodeHash, params));
+        IMailbox mailbox = IMailbox(diamondProxy);
 
         ///@notice prep factoryDeps
         bytes[] memory factoryDeps = new bytes[](1);
         factoryDeps[0] = bytecode;
 
+        ///@notice prep value
+        uint256 baseFee = mailbox.l2TransactionBaseCost(tx.gasprice, gasLimit, l2GasPerPubdataByteLimit);
+
         ///@notice Deploy from Layer 1
         if (broadcast) _vm.broadcast(_vm.envUint("PRIVATE_KEY"));
-        IMailbox(diamondProxy).requestL2Transaction(
-            DEPLOYER_SYSTEM_CONTRACT_ADDRESS, // address _contracts
+        mailbox.requestL2Transaction{
+            value: baseFee * (100 + L2_BASE_FEE_BUFFER) / 100
+        }(
+            L2_DEPLOYER_SYSTEM_CONTRACT_ADDR, // address _contracts
             0, // uint256 _l2Value
             encodedDeployment, // bytes calldata _calldata
             gasLimit, // uint256 _gasLimit
