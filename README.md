@@ -40,11 +40,10 @@ deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1337)), t
 
 > Note: The Diamond Proxy address is the address of the L1 contract that handles all interactions with the zkSync network. This address will always be the same as the bridge and can be found by attempting to bridge assets at https://portal.zksync.io/bridge
 
-Ensure the private key and mainnet rpc values are set in your env:
+Ensure your private key is in your env:
 
 ```sh
 PRIVATE_KEY=""
-RPC_MAINNET=""
 ```
 
 Enable read/write permissions in your `foundry.toml`:
