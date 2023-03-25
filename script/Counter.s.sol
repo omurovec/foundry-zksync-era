@@ -9,6 +9,6 @@ contract CounterScript is Script {
 
     function run() public {
         Deployer deployer = new Deployer("1.3.7", DIAMOND_PROXY_GOERLI);
-        address deployment = deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1234)), true);
+        deployer.deployFromL1("src/Counter.sol", new bytes(0), bytes32(uint256(1234)));
     }
 }
