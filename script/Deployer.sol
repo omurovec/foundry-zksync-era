@@ -123,13 +123,15 @@ contract Deployer {
             systemInfo.toolchain = "-gnu";
         } else {
             ///@notice Check os
-            cmds[1] = "$(uname -s)";
-            systemInfo.os = keccak256(bytes(_vm.ffi(cmds))) != keccak256(bytes("Darwin")) ? "macosx" : "linux";
+            cmds[0] = "uname";
+            cmds[1] = "-s";
+            systemInfo.os = keccak256(bytes(_vm.ffi(cmds))) == keccak256(bytes("Darwin")) ? "macosx" : "linux";
             systemInfo.toolchain = keccak256(bytes(systemInfo.os)) == keccak256(bytes("linux")) ? "-musl" : "";
 
             ///@notice Check arch
-            cmds[1] = "$(uname -m)";
-            systemInfo.arch = keccak256(bytes(_vm.ffi(cmds))) != keccak256(bytes("arm64")) ? "arm64" : "amd64";
+            cmds[0] = "uname";
+            cmds[1] = "-m";
+            systemInfo.arch = keccak256(bytes(_vm.ffi(cmds))) == keccak256(bytes("arm64")) ? "arm64" : "amd64";
         }
     }
 
