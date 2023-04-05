@@ -5,7 +5,8 @@ interface IDeployer {
   /**
    * @dev Deploys a contract from L1 to L2 using default gas limit and gas per
           pubdata byte values.
-   * @param fileName The name of the Solidity file containing the contract code to be compiled.
+   * @param fileName The name of the Solidity file containing the contract code 
+            to be compiled.
    * @param params The initialization parameters for the contract.
    * @param salt A unique salt value used to derive the contract's address.
    * @return The deployed contract's address.
