@@ -8,6 +8,7 @@ import "era-contracts/ethereum/contracts/zksync/interfaces/IMailbox.sol";
 import "era-contracts/ethereum/contracts/common/L2ContractAddresses.sol";
 import "era-contracts/ethereum/contracts/common/libraries/L2ContractHelper.sol";
 import "era-contracts/zksync/contracts/vendor/AddressAliasHelper.sol";
+import "./interfaces/IDeployer.sol";
 
 import {
     L2_TX_MAX_GAS_LIMIT,
@@ -20,7 +21,7 @@ interface IContractDeployer {
     function create2(bytes32 _salt, bytes32 _bytecodeHash, bytes calldata _input) external;
 }
 
-contract Deployer {
+contract Deployer is IDeployer {
     using strings for *;
 
     VmSafe _vm = VmSafe(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -40,15 +41,17 @@ contract Deployer {
     constructor(string memory _zksolcVersion, address _diamondProxy) {
         ///@notice install bin compiler
         projectRoot = _vm.projectRoot();
-        zksolcPath = _installCompiler(_zksolcVersion);
+        zksolcPath = _downloadCompiler(_zksolcVersion);
 
         diamondProxy = _diamondProxy;
     }
 
+    /// @inheritdoc IDeployer
     function deployFromL1(string memory fileName, bytes calldata params, bytes32 salt) public returns (address) {
         return deployFromL1(fileName, params, salt,  L2_TX_MAX_GAS_LIMIT, DEFAULT_L2_GAS_PRICE_PER_PUBDATA);
     }
 
+    /// @inheritdoc IDeployer
     function deployFromL1(
         string memory fileName,
         bytes calldata params,
@@ -136,7 +139,7 @@ contract Deployer {
     }
 
     ///@notice Ensure correct compiler bin is installed
-    function _installCompiler(string memory version) internal returns (string memory path) {
+    function _downloadCompiler(string memory version) internal returns (string memory path) {
         SystemInfo memory systemInfo = _detectSystemInfo();
 
         ///@notice Construct urls/paths
