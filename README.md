@@ -1,3 +1,5 @@
+> This solution is deprecated, please refer to https://github.com/matter-labs/foundry-zksync for foundry support with zkSync
+
 # Foundry Plugin for zkSync Era
 
 ![Preview](preview.png)
